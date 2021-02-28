@@ -53,13 +53,17 @@ signal ram1,ram2, ram3, ram4 : ram_type;
 --attribute block_ram of RAM2 : signal is TRUE;
 --attribute block_ram of RAM3 : signal is TRUE;
 --attribute block_ram of RAM4 : signal is TRUE;
+signal bytesel : std_logic_vector(1 downto 0);
+
 BEGIN
+
+bytesel <= rx_addra(1 downto 0);
 
 write: process (clk125)
 begin
   if (rising_edge(clk125)) then
     if (rx_wea = '1') then
-      case rx_addra(1 downto 0) is
+      case bytesel is
         when "00" =>
           ram4(to_integer(unsigned(rx_addra(BUFWIDTH + ADDRWIDTH - 1 downto 2)))) <= rx_dia;
         when "01" =>
