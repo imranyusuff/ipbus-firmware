@@ -72,7 +72,7 @@ architecture behavioural of ipbus_sim_udp is
 		report "ERROR: get_pkt_data can't get here";
 	end;
 	
-	attribute FOREIGN of get_pkt_data : procedure is "get_pkt_data sim_udp_fli.so";
+	attribute FOREIGN of get_pkt_data : procedure is "VHPIDIRECT get_pkt_data";
 	
 	procedure store_pkt_data(
 		variable mac_data_in: in integer) is
@@ -80,14 +80,14 @@ architecture behavioural of ipbus_sim_udp is
 		report "ERROR: store_pkt_data can't get here";
 	end;
 	
-	attribute FOREIGN of store_pkt_data : procedure is "store_pkt_data sim_udp_fli.so";
+	attribute FOREIGN of store_pkt_data : procedure is "VHPIDIRECT store_pkt_data";
 	
 	procedure send_pkt is
 	begin
 		report "ERROR: send_pkt can't get here";
 	end;
 	
-	attribute FOREIGN of send_pkt : procedure is "send_pkt sim_udp_fli.so";
+	attribute FOREIGN of send_pkt : procedure is "VHPIDIRECT send_pkt";
 	
 	constant TIMEOUT_VAL: integer := 32768;
 	
