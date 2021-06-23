@@ -1,6 +1,7 @@
-/* FLI code to allow reception and transmission of ipbus UDP packets.
+/* VHPIDIRECT code to allow reception and transmission of ipbus UDP packets.
 
    Dave Newbold, April 2019.
+   Imran Yusuff, June 2021.
 
 */
 
@@ -22,14 +23,12 @@
 #define BUFSZ 512 /* In 32b words; assuming 1500 octet packets, and datagram smaller than this */
 #define WAIT_USECS 50000 /* 50ms */
 
-extern int ghdl_main (int argc, void** argv);
-
 static uint32_t *rxbuf, *txbuf;
 static int fd;
 static int rxidx, txidx, rxlen;
 static uint16_t rxnum, txnum;
 
-int main(int argc, void** argv)
+__attribute__((constructor)) static void cinit()
 {
 	
 	struct sockaddr_in addr;
@@ -38,7 +37,8 @@ int main(int argc, void** argv)
     
     if((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
 		perror(MYNAME ": socket() failed");
-		return 1;
+                exit(1);
+                return;
 	}
 	
 	addr.sin_family = AF_INET;
@@ -47,19 +47,22 @@ int main(int argc, void** argv)
 	
 	if(bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		perror(MYNAME ": bind() failed");
-		return 1;
+                exit(1);
+                return;
 	}
 
     if(NULL == (rxbuf = (uint32_t*)malloc(BUFSZ * 4)))
     {
       perror (MYNAME ": rxbuf malloc() failed");
-      return 1;
+      exit(1);
+      return;
     }
 
     if(NULL == (txbuf = (uint32_t*)malloc(BUFSZ * 4)))
     {
       perror (MYNAME ": txbuf malloc() failed");
-      return 1;
+      exit(1);
+      return;
     }
     
     txidx = 0;
@@ -68,9 +71,10 @@ int main(int argc, void** argv)
     txnum = 0;
     
     printf(MYNAME ": listening on %s:%d, fd %d\n", inet_ntoa(addr.sin_addr), IP_PORT, fd);
+}
 
-    ghdl_main (argc, argv);
-
+__attribute__((destructor)) static void cfini()
+{
   printf(MYNAME ": shutting down\n");
   free(rxbuf);
   free(txbuf);
@@ -101,6 +105,7 @@ void get_pkt_data (int del_return,
 		while((s = select(fd + 1, &fds, NULL, NULL, &tv)) == -1){
 			if(errno != EINTR){
 				perror(MYNAME ": select() failed");
+                                exit(1);
 				return;
 			}
 		}
@@ -115,11 +120,13 @@ void get_pkt_data (int del_return,
 			len = recvfrom(fd, buf, BUFSZ * 4, 0, (struct sockaddr *)&addr, &addrlen);
 			if(len < 0){
 				perror(MYNAME ": recvfrom() failed" );
+                                exit(1);
 				return;
 			}
 			printf(MYNAME ": received packet %d from %s:%d, length %d\n", rxnum, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), len);
 			if(len % 4 != 0){
 				printf(MYNAME ": bad length %d\n", len);
+                                exit(1);
 				return;
 			}
 
@@ -157,6 +164,7 @@ void store_pkt_data(int mac_data_in)
 	
 	if(txidx == BUFSZ){
 		printf(MYNAME ": store_pkt_data buffer overflow\n" );
+                exit(1);
 	}
 
 }
@@ -175,6 +183,7 @@ void send_pkt()
 		
 	if(txidx > BUFSZ - 3 || txidx < 3){
 		printf(MYNAME ": bad packet length %d\n", txidx);
+                exit(1);
 		return;
 	}
 		
@@ -190,11 +199,13 @@ void send_pkt()
 	
 	if (txlen < 0){
 		perror(MYNAME ": sendto() failed");
+                exit(1);
 		return;
 	}
 	
 	if (txlen != (txidx - 3) * 4){
 		printf(MYNAME ": packet %d write error, length sent %d\n", txnum, txlen);
+                exit(1);
 	}
 	else{
 		printf(MYNAME ": sent packet %d to %s:%d, index %d, length %d\n", txnum, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), txbuf[2] & 0xffff, (txidx - 3) * 4);

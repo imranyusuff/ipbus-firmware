@@ -2,6 +2,7 @@
    simulated MAC.
 
    Dave Newbold, February 2011.
+   Imran Yusuff, June 2021.
 
    $Id: mac_vhpidirect.c 1001 2012-07-14 20:56:40Z phdmn $
 
@@ -27,14 +28,13 @@
 #define TAP_MTU 1500
 #define WAIT_USECS 50000 /* 50ms */
 
-extern int ghdl_main (int argc, void** argv);
 int tun_alloc ( char* dev, int flags );
 
 static unsigned char* rxbuffer, *txbuffer;
 static int tun_fd;
 static int rxidx, txidx, rxlen;
 
-int main(int argc, void** argv)
+__attribute__((constructor)) static void cinit()
 {
     /* First time called, set up the interfaces */
     printf ( "vhpidirect: initialising\n" );
@@ -42,13 +42,15 @@ int main(int argc, void** argv)
     if ( NULL== ( rxbuffer= ( unsigned char* ) malloc ( TAP_MTU ) ) )
     {
       perror ( "malloc for rxbuffer" );
-      return 1;
+      exit(1);
+      return;
     }
 
     if ( NULL== ( txbuffer= ( unsigned char* ) malloc ( TAP_MTU ) ) )
     {
       perror ( "malloc for txbuffer" );
-      return 1;
+      exit(1);
+      return;
     }
 
     tun_fd = tun_alloc ( TAP_DEV_STR, IFF_TAP | IFF_NO_PI );
@@ -56,16 +58,18 @@ int main(int argc, void** argv)
     if ( tun_fd < 0 )
     {
       perror ( "Allocating interface" );
-      return 1;
+      exit(1);
+      return;
     }
 
     txidx = 0;
     rxlen = 0;
     
     printf ( "vhpidirect: initalised\n" );
+}
 
-    ghdl_main (argc, argv);
-
+__attribute__((destructor)) static void cdestruct()
+{
     free(rxbuffer);
     free(txbuffer);
     close(tun_fd);
@@ -129,6 +133,7 @@ void get_mac_data ( int del_return,
       if ( errno!=EINTR )
       {
         perror ( "Select" );
+        exit(1);
         return;
       }
     }
@@ -146,6 +151,7 @@ void get_mac_data ( int del_return,
       if ( rxlen < 0 )
       {
         perror ( "Reading from interface" );
+        exit(1);
         return;
       }
 
@@ -163,7 +169,7 @@ void get_mac_data ( int del_return,
   }
   else
   {
-    printf ( "vhpidirect: get_mac_data packet finished\n" ); //, rxlen );
+    printf ( "vhpidirect: get_mac_data packet finished\n" );
     rxlen=0;
     *mac_data_out=0;
     *mac_data_valid=0;
@@ -181,6 +187,7 @@ void store_mac_data ( int mac_data_in )
   if ( txidx==TAP_MTU )
   {
     printf ( "vhpidirect: put_mac_data data length exceeds MTU\n" );
+    exit(1);
   }
 
   return;
@@ -195,12 +202,14 @@ void put_packet()
   if ( txlen < 0 )
   {
   	  perror ( "Writing to interface" );
+          exit(1);
   	  return;
   }
   
   if ( txlen!=txidx )
   {
     printf ( "vhpidirect: put_mac_data partial packet write error, length %d\n", txlen);
+    exit(1);
     return;
   }
   else
